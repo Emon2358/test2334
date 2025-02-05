@@ -2,35 +2,99 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Windows 98 Emulator</title>
-    <script src="https://copy.sh/v86/build/v86.js"></script>
+    <title>FreeDOS Web Emulator</title>
     <style>
-        body { margin: 0; text-align: center; background: black; }
-        canvas { width: 100%; max-width: 800px; }
+        .emulator-container {
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: center;
+        }
+        #screen {
+            width: 100%;
+            max-width: 720px;
+            height: 400px;
+            border: 1px solid #ccc;
+            background-color: #000;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
-    <h1 style="color: white;">Windows 98 Emulator</h1>
-    <canvas id="screen"></canvas>
-    <br>
-    <button onclick="downloadZip()">omotya.zip をダウンロード</button>
+    <div class="emulator-container">
+        <h1>FreeDOS Emulator</h1>
+        <div id="screen"></div>
+        <div id="status"></div>
+        <div class="controls">
+            <button onclick="emulator.run()">Start</button>
+            <button onclick="emulator.stop()">Stop</button>
+            <button onclick="emulator.restart()">Restart</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/copy.sh/v86/v86.js"></script>
     <script>
-        const emulator = new V86({
-            wasm_path: "https://copy.sh/v86/build/v86.wasm",
-            memory_size: 64 * 1024 * 1024,
-            vga_memory_size: 8 * 1024 * 1024,
+        const statusElement = document.getElementById('status');
+        
+        function showStatus(message, isError = false) {
+            statusElement.textContent = message;
+            statusElement.className = isError ? 'error' : 'success';
+        }
+
+        const emulator = new V86Starter({
+            memory_size: 32 * 1024 * 1024,
+            vga_memory_size: 2 * 1024 * 1024,
             screen_container: document.getElementById("screen"),
-            bios: { url: "https://copy.sh/v86/bios/seabios.bin" },
-            vga_bios: { url: "https://copy.sh/v86/bios/vgabios.bin" },
-            hda: { url: "https://archive.org/download/windows-98-se-isofile/Windows%2098%20SE%20ISO.iso", async: true },
-            network_relay_url: "wss://relay.copy.sh/",
+            bios: {
+                url: "https://copy.sh/v86/bios/seabios.bin"
+            },
+            vga_bios: {
+                url: "https://copy.sh/v86/bios/vgabios.bin"
+            },
+            fda: {
+                url: "https://copy.sh/v86/images/freedos722.img",
+                async: true
+            },
+            boot_order: 0x3210,
+            autostart: true
         });
 
-        function downloadZip() {
-            emulator.serial0_send("C:\\Windows\\Temp\\wget.exe -O C:\\Windows\\Temp\\omotya.zip https://archive.org/download/elementalsoft/omotya.zip\n");
-            alert("ダウンロードを開始しました。");
-        }
+        // リソースのロード状態監視
+        emulator.add_listener("emulator-started", function() {
+            showStatus("FreeDOS エミュレータが起動しました");
+        });
+
+        emulator.add_listener("emulator-stopped", function() {
+            showStatus("エミュレータが停止しました");
+        });
+
+        emulator.add_listener("download-progress", function(e) {
+            showStatus(`読み込み中: ${Math.round(e.loaded / e.total * 100)}%`);
+        });
+
+        emulator.add_listener("error", function(error) {
+            showStatus("エラーが発生しました: " + error, true);
+        });
     </script>
 </body>
 </html>
