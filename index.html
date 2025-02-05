@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v86 EXE Runner with Canvas</title>
+    <script src="https://cdn.rawgit.com/copy/v86/master/v86.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>v86 EXE Runner with Canvas</h1>
+    <input type="file" id="fileInput" accept=".exe">
+    <button id="runButton">Run EXE</button>
+    <canvas id="outputCanvas" width="640" height="480"></canvas>
+
+    <script>
+        // Canvas 要素とコンテキストを取得
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // v86 インスタンスの作成
+        const v86 = new V86({
+            memory_size: 128, // メモリサイズ
+            vga: {
+                enabled: true,
+                width: 640,
+                height: 480,
+                canvas: canvas // 描画に使用するキャンバス
+            },
+            bios: {
+                url: "https://cdn.rawgit.com/copy/v86/master/bios/seabios.bin", // BIOSのURL
+            },
+            cdrom: {
+                url: "https://cdn.rawgit.com/copy/v86/master/images/win98.img", // CD-ROMイメージのURL
+            },
+            autostart: false, // 自動スタートを無効にする
+            on_cpu_run: function() {
+                // CPUが実行中のときの処理（必要に応じて実装）
+            },
+            on_console: function(data) {
+                console.log(data); // コンソール出力をログに表示
+            }
+        });
+
+        // ボタンがクリックされたときの処理
+        document.getElementById('runButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert("EXEファイルを選択してください。");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                v86.add_cdrom_file(file.name, new Uint8Array(arrayBuffer)); // EXEファイルをCD-ROMに追加
+                v86.start(); // v86をスタート
+            };
+            reader.readAsArrayBuffer(file); // ファイルをArrayBufferとして読み込む
+        });
+    </script>
+</body>
+</html>
