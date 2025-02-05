@@ -1,100 +1,170 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>FreeDOS Web Emulator</title>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Windows 98 Emulator</title>
     <style>
-        .emulator-container {
-            max-width: 800px;
-            margin: 20px auto;
-            text-align: center;
-        }
-        #screen {
-            width: 100%;
-            max-width: 720px;
-            height: 400px;
-            border: 1px solid #ccc;
-            background-color: #000;
-        }
-        .controls {
-            margin: 10px 0;
-        }
-        button {
-            margin: 5px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        #status {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .error {
-            background-color: #ffebee;
-            color: #c62828;
-        }
-        .success {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
+      body {
+        background: #008080;
+        margin: 0;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 1024px;
+        margin: 0 auto;
+      }
+      .emulator-border {
+        border: 2px solid #404040;
+        border-radius: 4px;
+        background: #000;
+        padding: 4px;
+        margin-bottom: 20px;
+      }
+      canvas.emulator {
+        border: 0;
+        width: 800px;
+        height: 600px;
+      }
+      .controls {
+        background: #d4d0c8;
+        padding: 15px;
+        border: 2px solid #404040;
+        border-radius: 4px;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 800px;
+      }
+      .droparea {
+        border: 2px dashed #404040;
+        background: #fff;
+        padding: 20px;
+        text-align: center;
+        width: 100%;
+        max-width: 800px;
+        margin-top: 20px;
+        border-radius: 4px;
+      }
+      .button {
+        background: #d4d0c8;
+        border: 2px solid #404040;
+        padding: 5px 15px;
+        cursor: pointer;
+      }
+      .button:active {
+        background: #bbb;
+      }
+      select {
+        background: #fff;
+        border: 2px solid #404040;
+        padding: 4px;
+        margin: 0 10px;
+      }
     </style>
-</head>
-<body>
-    <div class="emulator-container">
-        <h1>FreeDOS Emulator</h1>
-        <div id="screen"></div>
-        <div id="status"></div>
-        <div class="controls">
-            <button onclick="emulator.run()">Start</button>
-            <button onclick="emulator.stop()">Stop</button>
-            <button onclick="emulator.restart()">Restart</button>
+  </head>
+  <body>
+    <div class="container">
+      <div class="emulator-border">
+        <canvas class="emulator" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+      </div>
+      <div class="controls">
+        <input type="checkbox" id="resize"> Resize canvas
+        <input type="checkbox" id="pointerLock" checked> Lock/hide mouse pointer
+        <button class="button" onclick="Module.requestFullScreen(document.getElementById('pointerLock').checked,
+                                                               document.getElementById('resize').checked)">
+          Fullscreen
+        </button>
+      </div>
+      <div class="droparea" id="droparea">
+        ドラッグ＆ドロップでディスクイメージやISOファイルをアップロード
+        <br>
+        <small>対応形式: .img, .iso, .vhd</small>
+      </div>
+      <div class="controls">
+        <div>
+          ハードディスク:
+          <select id="hdd">
+            <option value="">(未選択)</option>
+          </select>
         </div>
+        <div style="margin-top: 10px;">
+          CD-ROM:
+          <select id="cdrom">
+            <option value="">(未選択)</option>
+          </select>
+        </div>
+      </div>
     </div>
+    <script type="module">
+      // v86エミュレータを使用するための設定
+      import { V86Starter } from 'https://unpkg.com/v86@latest/build/v86.js';
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/copy.sh/v86/v86.js"></script>
-    <script>
-        const statusElement = document.getElementById('status');
-        
-        function showStatus(message, isError = false) {
-            statusElement.textContent = message;
-            statusElement.className = isError ? 'error' : 'success';
+      let emulator = null;
+      const canvas = document.getElementById('canvas');
+      const droparea = document.getElementById('droparea');
+      const hddSelect = document.getElementById('hdd');
+      const cdromSelect = document.getElementById('cdrom');
+
+      async function initEmulator() {
+        if (emulator) return;
+
+        emulator = new V86Starter({
+          screen_container: canvas,
+          bios: { url: "https://unpkg.com/v86@latest/bios/seabios.bin" },
+          vga_bios: { url: "https://unpkg.com/v86@latest/bios/vgabios.bin" },
+          cdrom: { url: "" },
+          hda: { url: "" },
+          boot_order: 0x132,
+          memory_size: 64 * 1024 * 1024,
+          vga_memory_size: 8 * 1024 * 1024,
+          network_relay_url: "wss://relay.widgetry.org/",
+          autostart: true
+        });
+      }
+
+      async function loadDisk(file, type) {
+        const buffer = await file.arrayBuffer();
+        if (type === 'hdd') {
+          emulator.create_hard_disk(file.name, buffer);
+          updateDiskSelect(hddSelect, file);
+        } else if (type === 'cdrom') {
+          emulator.create_cd(file.name, buffer);
+          updateDiskSelect(cdromSelect, file);
         }
+      }
 
-        const emulator = new V86Starter({
-            memory_size: 32 * 1024 * 1024,
-            vga_memory_size: 2 * 1024 * 1024,
-            screen_container: document.getElementById("screen"),
-            bios: {
-                url: "https://copy.sh/v86/bios/seabios.bin"
-            },
-            vga_bios: {
-                url: "https://copy.sh/v86/bios/vgabios.bin"
-            },
-            fda: {
-                url: "https://copy.sh/v86/images/freedos722.img",
-                async: true
-            },
-            boot_order: 0x3210,
-            autostart: true
-        });
+      function updateDiskSelect(select, file) {
+        const option = document.createElement('option');
+        option.value = file.name;
+        option.textContent = file.name;
+        select.appendChild(option);
+        select.value = file.name;
+      }
 
-        // リソースのロード状態監視
-        emulator.add_listener("emulator-started", function() {
-            showStatus("FreeDOS エミュレータが起動しました");
-        });
+      droparea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
 
-        emulator.add_listener("emulator-stopped", function() {
-            showStatus("エミュレータが停止しました");
-        });
+      droparea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        await initEmulator();
 
-        emulator.add_listener("download-progress", function(e) {
-            showStatus(`読み込み中: ${Math.round(e.loaded / e.total * 100)}%`);
-        });
-
-        emulator.add_listener("error", function(error) {
-            showStatus("エラーが発生しました: " + error, true);
-        });
+        for (const file of e.dataTransfer.files) {
+          const ext = file.name.toLowerCase().split('.').pop();
+          if (['img', 'vhd'].includes(ext)) {
+            await loadDisk(file, 'hdd');
+          } else if (ext === 'iso') {
+            await loadDisk(file, 'cdrom');
+          } else {
+            console.log(`未対応のファイル形式です: ${file.name}`);
+          }
+        }
+      });
     </script>
-</body>
+  </body>
 </html>
