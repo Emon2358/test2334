@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>v86 EXE Runner with Canvas</title>
+    <title>v86 ISO Runner with Canvas</title>
     <script src="https://cdn.rawgit.com/copy/v86/master/v86.js"></script>
     <style>
         body {
@@ -18,9 +18,9 @@
     </style>
 </head>
 <body>
-    <h1>v86 EXE Runner with Canvas</h1>
-    <input type="file" id="fileInput" accept=".exe">
-    <button id="runButton">Run EXE</button>
+    <h1>v86 ISO Runner with Canvas</h1>
+    <input type="file" id="fileInput" accept=".iso">
+    <button id="runButton">Run ISO</button>
     <canvas id="outputCanvas" width="640" height="480"></canvas>
 
     <script>
@@ -56,7 +56,7 @@
         document.getElementById('runButton').addEventListener('click', function() {
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length === 0) {
-                alert("EXEファイルを選択してください。");
+                alert("ISOファイルを選択してください。");
                 return;
             }
 
@@ -64,7 +64,7 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const arrayBuffer = event.target.result;
-                v86.add_cdrom_file(file.name, new Uint8Array(arrayBuffer)); // EXEファイルをCD-ROMに追加
+                v86.add_cdrom_file(file.name, new Uint8Array(arrayBuffer)); // ISOファイルをCD-ROMに追加
                 v86.start(); // v86をスタート
             };
             reader.readAsArrayBuffer(file); // ファイルをArrayBufferとして読み込む
